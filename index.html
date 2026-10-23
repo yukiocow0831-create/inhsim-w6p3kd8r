@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>相続税シミュレーター</title>
+<meta property="og:title" content="相続税シミュレーター">
+<meta property="og:description" content="家族構成と財産を入れるだけで相続税の目安を計算（小規模宅地・配偶者軽減・2割加算・申告期限）">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;font-size:19px;line-height:1.7;background:#fff8ee;color:#222}
+header{background:linear-gradient(135deg,#ff7a59,#ffb340);color:#fff;padding:18px 16px;text-align:center}
+header h1{margin:0;font-size:25px}header p{margin:4px 0 0;font-size:16px}
+main{max-width:760px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 3px 10px #0001;border-top:8px solid var(--c,#4a90e2)}
+.card h2{margin:0 0 10px;font-size:22px;color:var(--c,#4a90e2)}
+label{display:block;font-weight:bold;margin:12px 0 4px}
+small,.note{font-size:15px;color:#666;font-weight:normal}
+input,select{width:100%;font-size:20px;padding:10px;border:2px solid #ccc;border-radius:12px;background:#fffdf8}
+input:focus,select:focus{border-color:#ff7a59;outline:none}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+.dep{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:end;margin-top:8px}
+button{font-size:19px;padding:12px 18px;border:none;border-radius:14px;cursor:pointer;font-weight:bold}
+.add{background:#4caf50;color:#fff}.del{background:#e57373;color:#fff;padding:10px 14px}
+.big{display:block;width:100%;background:#ff7a59;color:#fff;font-size:23px;padding:16px;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:17px}td{padding:6px 4px;border-bottom:1px dashed #ddd;vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:bold}
+.f{font-size:15px;color:#555;background:#f3f7ff;border-radius:8px;padding:6px 8px;margin:4px 0 8px}
+.total{font-size:26px;font-weight:bold;color:#d84315;text-align:center;margin:8px 0}
+.furu{background:linear-gradient(135deg,#fff0f6,#ffe3ec)}
+.furu .total{color:#c2185b;font-size:30px}
+.warn{background:#fff3cd;border-radius:12px;padding:12px;font-size:16px}
+details summary{cursor:pointer;font-weight:bold;color:#4a90e2}
+</style></head><body>
+
+<style>.heir{background:#f7fbff;border-radius:12px;padding:10px;margin:8px 0;border-left:6px solid #42a5f5}.land,.kid{background:#fafafa;border-radius:12px;padding:10px;margin:8px 0;border:2px dashed #ddd}.chk{width:auto;transform:scale(1.5);margin-right:8px}.unit{font-size:15px;color:#888}</style>
+</head><body>
+<header style="background:linear-gradient(135deg,#26a69a,#5c6bc0)"><h1>🏯 相続税シミュレーター</h1><p>家族と財産を入れるだけで、計算式つきで目安を計算します</p></header>
+<main>
+<div class="warn">⚠️ この計算は<b>目安</b>です。財産評価（路線価・倍率など）、特例の適用要件、遺産分割の内容によって実際の税額は変わります。申告の際は必ず専門家の確認を受けてください。金額は<b>万円</b>で入力します。</div>
+
+<div class="card" style="--c:#7e57c2"><h2>① 相続開始日</h2>
+<label>亡くなった日</label><input type="date" id="date"></div>
+
+<div class="card" style="--c:#ef6c00"><h2>② 家族（相続人）</h2>
+<label><input type="checkbox" class="chk" id="sp">配偶者がいる</label>
+<h3>子ども</h3><p class="note">1人ずつ追加します。亡くなった子の代わりに孫が相続する場合は「代襲（孫）」を選び、孫の人数を入れます。</p>
+<div id="kids"></div><button type="button" class="add" id="addKid">＋ 子どもを追加</button>
+<div id="noKid"><h3>子どもがいない場合</h3>
+<div class="row"><div><label>父母・祖父母（存命の人数）</label><input id="asc" inputmode="numeric" value="0"></div>
+<div><label>兄弟姉妹（両親が同じ）</label><input id="sib" inputmode="numeric" value="0"></div></div>
+<label>兄弟姉妹（片親だけ同じ＝半血） <small>相続分は全血の半分</small></label><input id="hsib" inputmode="numeric" value="0">
+<p class="note">父母・祖父母がいれば兄弟姉妹は相続人になりません。</p></div>
+<div id="heirSum"></div></div>
+
+<div class="card" style="--c:#2e7d32"><h2>③ 土地 <small>（小規模宅地等の特例）</small></h2>
+<div id="lands"></div><button type="button" class="add" id="addLand">＋ 土地を追加</button>
+<p class="note">限度面積：特定居住用330㎡・特定事業用400㎡（併用で計730㎡）、貸付事業用200㎡（他と併用時は 居住面積×200/330＋事業面積×200/400＋貸付面積 ≦ 200㎡）。上から順に限度面積を当てはめます。</p></div>
+
+<div class="card" style="--c:#1565c0"><h2>④ その他の財産・債務</h2>
+<div class="row"><div><label>建物</label><input id="bld" inputmode="numeric" value="0"></div><div><label>預貯金・現金</label><input id="dep" inputmode="numeric" value="0"></div>
+<div><label>有価証券</label><input id="sec" inputmode="numeric" value="0"></div><div><label>その他の財産</label><input id="oth" inputmode="numeric" value="0"></div>
+<div><label>生命保険金（相続人が受取）</label><input id="ins" inputmode="numeric" value="0"></div><div><label>死亡退職金（相続人が受取）</label><input id="ret" inputmode="numeric" value="0"></div>
+<div><label>借入金などの債務</label><input id="debt" inputmode="numeric" value="0"></div><div><label>葬式費用</label><input id="fun" inputmode="numeric" value="0"></div></div></div>
+
+<div class="card" style="--c:#c2185b"><h2>⑤ 生前贈与の加算</h2>
+<label>暦年贈与：亡くなる前3年以内の分</label><input id="g3" inputmode="numeric" value="0">
+<label>暦年贈与：3年超〜7年以内の分 <small>（合計から100万円を控除）</small></label><input id="g7" inputmode="numeric" value="0">
+<p class="note">2024年1月1日以後の贈与から加算期間が7年に延長。経過措置により、2026年中の相続は加算期間3年、2027年以後順次延び、2031年1月以後の相続で完全に7年となります。相続開始日から見て加算対象になる額だけを入れてください。相続人等（財産取得者）への贈与のみ対象です。</p>
+<label>相続時精算課税の贈与額 <small>（2024年以後の分は毎年110万円の基礎控除を引いた後の額）</small></label><input id="gs" inputmode="numeric" value="0"></div>
+
+<div id="divCard" class="card" style="--c:#00838f"><h2>⑥ 分け方と各人の事情</h2>
+<p class="note">取得割合（%）の初期値は法定相続分です。年齢は未成年者控除・障害者控除に使います。</p><div id="heirs"></div>
+<button type="button" class="add" id="legal">法定相続分に戻す</button></div>
+
+<button class="big" id="calc" style="background:#26a69a">🧮 計算する</button>
+<div id="out"></div>
+<p class="note">令和8年（2026年）時点の法律で作成。相次相続控除・外国税額控除・農地等の納税猶予・非上場株式の評価は含みません。</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const yen=n=>Math.round(n).toLocaleString('ja-JP')+'円';
+const man=n=>(Math.round(n)/10000).toLocaleString('ja-JP',{maximumFractionDigits:4})+'万円';
+const v=x=>{const n=parseFloat(String(x).replace(/[,，円\s万]/g,''));return isNaN(n)?0:n};
+const W=id=>v($(id).value)*10000;
+const F=['date','asc','sib','hsib','bld','dep','sec','oth','ins','ret','debt','fun','g3','g7','gs'];
+let heirInfo={};// key -> {pct,age,dis,cr}
+const RT=[[1e7,.10,0],[3e7,.15,5e5],[5e7,.20,2e6],[1e8,.30,7e6],[2e8,.40,1.7e7],[3e8,.45,2.7e7],[6e8,.50,4.2e7],[Infinity,.55,7.2e7]];
+function rate(x){for(const r of RT)if(x<=r[0])return r}
+const KT={jitsu:'実子',yoshi:'養子',magoyoshi:'孫養子（代襲でない孫）',daishu:'代襲（亡くなった子の子＝孫）'};
+function addKid(t='jitsu',n=1){const d=document.createElement('div');d.className='kid';
+d.innerHTML='<div class="row"><div><label>区分</label><select class="kt">'+Object.entries(KT).map(([k,l])=>'<option value="'+k+'">'+l+'</option>').join('')+'</select></div><div class="gc"><label>孫の人数</label><input class="kn" inputmode="numeric"></div></div><button type="button" class="del" style="margin-top:8px">✕ 削除</button>';
+d.querySelector('.kt').value=t;d.querySelector('.kn').value=n;
+const up=()=>{d.querySelector('.gc').style.visibility=d.querySelector('.kt').value==='daishu'?'visible':'hidden';refresh()};
+d.querySelector('.kt').onchange=up;d.querySelector('.kn').onchange=refresh;d.querySelector('.del').onclick=()=>{d.remove();refresh()};
+$('kids').appendChild(d);up()}
+const LT={none:'特例なし',kyo:'特定居住用（330㎡・80%減）',ji:'特定事業用（400㎡・80%減）',kashi:'貸付事業用（200㎡・50%減）'};
+function addLand(t='none',a='',val=''){const d=document.createElement('div');d.className='land';
+d.innerHTML='<label>特例の区分</label><select class="lt">'+Object.entries(LT).map(([k,l])=>'<option value="'+k+'">'+l+'</option>').join('')+'</select><div class="row"><div><label>面積（㎡）</label><input class="la" inputmode="decimal"></div><div><label>評価額（万円）</label><input class="lv" inputmode="numeric"></div></div><button type="button" class="del" style="margin-top:8px">✕ 削除</button>';
+d.querySelector('.lt').value=t;d.querySelector('.la').value=a;d.querySelector('.lv').value=val;
+d.querySelectorAll('select,input').forEach(e=>e.onchange=save);d.querySelector('.del').onclick=()=>{d.remove();save()};$('lands').appendChild(d)}
+
+function family(){
+ const sp=$('sp').checked,kids=[...document.querySelectorAll('.kid')].map(d=>({t:d.querySelector('.kt').value,n:Math.max(1,Math.floor(v(d.querySelector('.kn').value)))}));
+ const H=[],V=[];let order='',note='';
+ if(kids.length){order='第1順位（子）';
+  const nat=kids.filter(k=>k.t==='jitsu'||k.t==='daishu').length,ad=kids.filter(k=>k.t==='yoshi'||k.t==='magoyoshi').length;
+  const lim=nat>0?1:2,adC=Math.min(ad,lim);if(ad>adC)note='養子は'+(nat>0?'実子がいるので1人':'実子がいないので2人')+'まで数えます（'+ad+'人中'+adC+'人）。';
+  const P=sp?.5:1,cu=P/kids.length,tu=P/(nat+adC);let i=0,ai=0;
+  kids.forEach(k=>{i++;if(k.t==='daishu'){for(let j=1;j<=k.n;j++){H.push({key:'k'+i+'_'+j,name:'孫'+j+'（子'+i+'の代襲）',civil:cu/k.n,add:false,cnt:true});V.push(tu/k.n)}}
+   else{const isAd=k.t!=='jitsu';const cnt=!isAd||ai++<adC;H.push({key:'k'+i,name:'子'+i+'（'+KT[k.t].replace(/（.*/,'')+'）',civil:cu,add:k.t==='magoyoshi',cnt});if(cnt)V.push(tu)}});
+ }else{const asc=Math.floor(v($('asc').value)),sib=Math.floor(v($('sib').value)),hs=Math.floor(v($('hsib').value));
+  if(asc>0){order='第2順位（父母・祖父母）';const P=sp?1/3:1;for(let j=1;j<=asc;j++){H.push({key:'a'+j,name:'父母・祖父母'+j,civil:P/asc,add:false,cnt:true});V.push(P/asc)}}
+  else if(sib+hs>0){order='第3順位（兄弟姉妹）';const P=sp?1/4:1,w=2*sib+hs;
+   for(let j=1;j<=sib;j++){H.push({key:'s'+j,name:'兄弟姉妹'+j,civil:P*2/w,add:true,cnt:true});V.push(P*2/w)}
+   for(let j=1;j<=hs;j++){H.push({key:'h'+j,name:'半血兄弟姉妹'+j,civil:P/w,add:true,cnt:true});V.push(P/w)}}}
+ const rest=H.length?(order.includes('子')?.5:order.includes('2')?2/3:3/4):1;
+ if(sp){H.unshift({key:'sp',name:'配偶者',civil:rest,add:false,cnt:true,sp:true});V.unshift(rest)}
+ return{H,V,n:V.length,order,note,sp}}
+const frac=x=>{for(let d=1;d<=240;d++){const n=Math.round(x*d);if(Math.abs(n/d-x)<1e-9)return n+'/'+d}return(x*100).toFixed(2)+'%'};
+function refresh(){const f=family();$('noKid').style.display=document.querySelector('.kid')?'none':'block';
+ $('heirSum').innerHTML='<div class="f" style="font-size:17px">法定相続人：<b>'+f.n+'人</b>（基礎控除・非課税枠に使う人数）'+(f.order?'　'+f.order:'')+'<br>'+(f.note?f.note+'<br>':'')+f.H.map(h=>h.name+'：'+frac(h.civil)+(h.add?' <b style="color:#d84315">2割加算</b>':'')).join('　')+'</div>';
+ $('heirs').innerHTML=f.H.map(h=>{const i=heirInfo[h.key]||{};return '<div class="heir"><b>'+h.name+'</b> <small>法定相続分 '+frac(h.civil)+'</small><div class="row"><div><label>取得割合（%）</label><input data-k="'+h.key+'" data-f="pct" inputmode="decimal" value="'+(i.pct??+(h.civil*100).toFixed(4))+'"></div><div><label>年齢（相続開始時）</label><input data-k="'+h.key+'" data-f="age" inputmode="numeric" value="'+(i.age??'')+'"></div><div><label>障害者</label><select data-k="'+h.key+'" data-f="dis"><option value="0">該当なし</option><option value="1">一般障害者</option><option value="2">特別障害者</option></select></div><div><label>贈与税額控除など（万円）</label><input data-k="'+h.key+'" data-f="cr" inputmode="numeric" value="'+(i.cr??0)+'"></div></div></div>'}).join('');
+ f.H.forEach(h=>{const s=document.querySelector('select[data-k="'+h.key+'"]');if(s)s.value=(heirInfo[h.key]||{}).dis||'0'});
+ document.querySelectorAll('#heirs [data-k]').forEach(e=>e.onchange=()=>{(heirInfo[e.dataset.k]=heirInfo[e.dataset.k]||{})[e.dataset.f]=e.value;save()});save()}
+function save(){try{const o={};F.forEach(k=>o[k]=$(k).value);o.sp=$('sp').checked;o.kids=[...document.querySelectorAll('.kid')].map(d=>[d.querySelector('.kt').value,d.querySelector('.kn').value]);o.lands=[...document.querySelectorAll('.land')].map(d=>[d.querySelector('.lt').value,d.querySelector('.la').value,d.querySelector('.lv').value]);o.hi=heirInfo;localStorage.setItem('inhsim',JSON.stringify(o))}catch(e){}}
+function load(){let o=null;try{o=JSON.parse(localStorage.getItem('inhsim')||'null')}catch(e){}
+ if(!o){o={sp:true,kids:[['jitsu',1],['jitsu',1]],lands:[['kyo',200,5000]],dep:15000,date:new Date().toISOString().slice(0,10)}}
+ F.forEach(k=>{if(o[k]!=null)$(k).value=o[k]});$('sp').checked=!!o.sp;(o.kids||[]).forEach(k=>addKid(k[0],k[1]));(o.lands||[]).forEach(l=>addLand(l[0],l[1],l[2]));heirInfo=o.hi||{};refresh()}
+function deadline(ds){if(!ds)return null;const[y,m,d]=ds.split('-').map(Number);let t=new Date(y,m-1+10,1);const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(d,last));const orig=new Date(t);while(t.getDay()===0||t.getDay()===6)t.setDate(t.getDate()+1);return[orig,t]}
+const jd=t=>t.getFullYear()+'年'+(t.getMonth()+1)+'月'+t.getDate()+'日（'+'日月火水木金土'[t.getDay()]+'）';
+function calc(){save();const f=family();if(!f.n){$('out').innerHTML='<div class="warn">相続人を入れてください。</div>';return}
+ const L=[];const row=(a,b,fm)=>L.push('<tr><td>'+a+(fm?'<div class="f">'+fm+'</div>':'')+'</td><td class="n">'+b+'</td></tr>');
+ // 小規模宅地
+ let uK=0,uJ=0,uS=0,landT=0,red=0;const lr=[];
+ document.querySelectorAll('.land').forEach((d,i)=>{const t=d.querySelector('.lt').value,a=v(d.querySelector('.la').value),val=v(d.querySelector('.lv').value)*10000;landT+=val;let use=0,r=0;
+  if(a>0&&t!=='none'){if(t==='kyo'){use=Math.min(a,330-uK);uK+=use;r=.8}else if(t==='ji'){use=Math.min(a,400-uJ);uJ+=use;r=.8}else{const room=200-uK*200/330-uJ*200/400-uS;use=Math.max(0,Math.min(a,room));uS+=use;r=.5}}
+  const x=a>0?Math.floor(val*use/a*r):0;red+=x;if(t!=='none')lr.push('土地'+(i+1)+'：'+yen(val)+'×'+use.toFixed(2)+'㎡/'+a+'㎡×'+(r*100)+'% ＝ '+yen(x))});
+ const lim=5e6*f.n,ins=W('ins'),ret=W('ret'),insX=Math.min(ins,lim),retX=Math.min(ret,lim);
+ const g7=Math.max(0,W('g7')-1e6),gift=W('g3')+g7+W('gs');
+ const assets=landT-red+W('bld')+W('dep')+W('sec')+W('oth')+ins-insX+ret-retX;
+ const ded=W('debt')+W('fun');const net=Math.max(0,assets-ded);const tv=Math.floor((net+gift)/1000)*1000;
+ row('土地の評価額合計',yen(landT));if(red)row('小規模宅地等の特例による減額','−'+yen(red),lr.join('<br>'));
+ row('建物・預貯金・有価証券・その他',yen(W('bld')+W('dep')+W('sec')+W('oth')));
+ row('生命保険金（課税分）',yen(ins-insX),'非課税枠 500万円×'+f.n+'人＝'+yen(lim)+'　'+yen(ins)+'−'+yen(insX));
+ row('死亡退職金（課税分）',yen(ret-retX),'非課税枠 500万円×'+f.n+'人＝'+yen(lim)+'　'+yen(ret)+'−'+yen(retX));
+ row('債務・葬式費用','−'+yen(ded));row('生前贈与加算',yen(gift),'3年以内 '+yen(W('g3'))+' ＋（3年超分 '+yen(W('g7'))+'−100万円）＋精算課税 '+yen(W('gs')));
+ row('<b>課税価格の合計</b>','<b>'+yen(tv)+'</b>','財産−債務等＋贈与加算（千円未満切捨て）');
+ const basic=3e7+6e6*f.n,taxable=Math.max(0,tv-basic);
+ row('基礎控除',' −'+yen(basic),'3,000万円＋600万円×'+f.n+'人');row('<b>課税遺産総額</b>','<b>'+yen(taxable)+'</b>');
+ const S1='<table>'+L.join('')+'</table>';L.length=0;
+ let total=0;f.V.forEach((s,i)=>{const p=Math.floor(taxable*s/1000)*1000,r=rate(p),t=Math.max(0,p*r[1]-r[2]);total+=t;
+  row('法定相続分 '+frac(s)+(i===0&&f.sp?'（配偶者）':''),yen(t),yen(p)+'×'+(r[1]*100)+'%−'+yen(r[2])+'（取得金額は千円未満切捨て）')});
+ total=Math.floor(total/100)*100;row('<b>相続税の総額</b>','<b>'+yen(total)+'</b>','百円未満切捨て');const S2='<table>'+L.join('')+'</table>';L.length=0;
+ const info=k=>heirInfo[k]||{};const pcts=f.H.map(h=>v(info(h.key).pct??h.civil*100));const ps=pcts.reduce((a,b)=>a+b,0)||1;
+ let sum=0;const cards=f.H.map((h,i)=>{const ratio=pcts[i]/ps,mine=tv*ratio;const LL=[];const r2=(a,b,fm)=>LL.push('<tr><td>'+a+(fm?'<div class="f">'+fm+'</div>':'')+'</td><td class="n">'+b+'</td></tr>');
+  let t=total*ratio;r2('按分した税額',yen(t),yen(total)+'×'+(ratio*100).toFixed(2)+'%（取得割合）');
+  if(h.add){const a=t*.2;t+=a;r2('2割加算','＋'+yen(a),'兄弟姉妹・孫養子などは税額×20%を加算')}
+  if(h.sp){const cap=Math.max(1.6e8,tv*h.civil),x=tv?Math.min(t,total*Math.min(mine,cap)/tv):0;t-=x;r2('配偶者の税額軽減','−'+yen(x),yen(total)+'×min(取得額'+yen(mine)+', max(1億6千万円, 法定相続分'+yen(tv*h.civil)+'))÷'+yen(tv))}
+  const age=info(h.key).age;if(age!==undefined&&age!==''&&v(age)<18){const x=Math.min(t,(18-Math.floor(v(age)))*1e5);r2('未成年者控除','−'+yen(x),'(18歳−'+Math.floor(v(age))+'歳)×10万円＝'+yen((18-Math.floor(v(age)))*1e5)+(x<(18-Math.floor(v(age)))*1e5?'（引ききれない分は扶養義務者から控除可）':''));t-=x}
+  const dis=+(info(h.key).dis||0);if(dis&&age!==undefined&&age!==''&&v(age)<85){const u=dis===2?2e5:1e5,full=(85-Math.floor(v(age)))*u,x=Math.min(t,full);r2((dis===2?'特別':'')+'障害者控除','−'+yen(x),'(85歳−'+Math.floor(v(age))+'歳)×'+(u/1e4)+'万円＝'+yen(full));t-=x}
+  const cr=v(info(h.key).cr)*1e4;if(cr){const x=Math.min(t,cr);r2('贈与税額控除など','−'+yen(x));t-=x}
+  t=Math.floor(Math.max(0,t)/100)*100;sum+=t;r2('<b>納付税額</b>','<b style="color:#d84315;font-size:21px">'+yen(t)+'</b>','百円未満切捨て');
+  return '<div class="heir"><b>'+h.name+'</b>　取得額の目安 '+yen(mine)+'<table>'+LL.join('')+'</table></div>'});
+ const dl=deadline($('date').value);
+ $('out').innerHTML='<div class="card" style="--c:#2e7d32"><h2>STEP1 課税価格と基礎控除</h2>'+S1+'</div><div class="card" style="--c:#1565c0"><h2>STEP2 相続税の総額（法定相続分で計算）</h2>'+S2+'</div><div class="card" style="--c:#00838f"><h2>STEP3 各人の納付税額</h2>'+(Math.abs(ps-100)>0.01?'<div class="warn">取得割合の合計が'+ps.toFixed(2)+'%なので、合計を100%として按分しました。</div>':'')+cards.join('')+'</div>'+
+ '<div class="card furu" style="--c:#c2185b"><h2>💴 納付税額の合計</h2><div class="total">'+yen(sum)+'</div>'+(dl?'<p style="text-align:center;font-size:20px">📅 申告・納付期限：<b>'+jd(dl[1])+'</b>'+(dl[0]-dl[1]?'<br><small>（本来 '+jd(dl[0])+' が土日のため翌月曜。祝日は考慮していません）</small>':'')+'</p><p class="note">相続開始（死亡を知った日）の翌日から10か月以内。</p>':'')+(taxable===0?'<p class="note">課税遺産総額が0円のため相続税はかかりません（小規模宅地・配偶者軽減を使う場合は0円でも申告が必要です）。</p>':'')+'</div>';
+ $('out').scrollIntoView({behavior:'smooth'})}
+$('addKid').onclick=()=>addKid();$('addLand').onclick=()=>{addLand();save()};$('sp').onchange=refresh;['asc','sib','hsib'].forEach(k=>$(k).onchange=refresh);
+F.forEach(k=>$(k).addEventListener('change',save));$('legal').onclick=()=>{Object.values(heirInfo).forEach(i=>delete i.pct);refresh()};$('calc').onclick=calc;
+load();
+</script></body></html>
